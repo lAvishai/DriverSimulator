@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Emergency Crossroad Simulator — 3D Cockpit Edition</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- Three.js r128 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+  <!-- Main 3D Viewport Container -->
+  <div id="viewport-container">
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Strobe Red/Blue Screen Edge Flash Overlay -->
+    <div id="strobe-overlay" class="strobe-off"></div>
+
+    <!-- Windshield G-Force / Damage Vignette -->
+    <div id="stress-vignette"></div>
+
+    <!-- Top Cockpit Bezel & Center Mirror -->
+    <div id="top-cockpit-bar">
+      <!-- Left Head-Check Indicator -->
+      <div class="look-indicator" id="look-left-pill" title="Hold Q to look 90° Left">
+        <span class="key-badge">Q</span> ◄ LOOK LEFT
+      </div>
+
+      <!-- Center Rear-View / Cabin Mirror Frame -->
+      <div id="center-mirror-wrapper" class="mirror-housing center-mirror">
+        <div class="mirror-header">
+          <span id="center-mirror-label">REAR TRAFFIC MIRROR</span>
+          <button id="toggle-cabin-cam-btn" class="mini-cockpit-btn" title="Toggle Rear Road vs. Back Cabin View (C)">
+            [C] CABIN VIEW
+          </button>
+        </div>
+        <!-- Transparent hole where Three.js scissor renders the rear/cabin camera -->
+        <div id="mirror-center-rect" class="mirror-viewport"></div>
+        <!-- Cabin Stress Overlay inside Center Mirror -->
+        <div id="cabin-status-overlay" class="hidden">
+          <span id="cabin-live-badge">● LIVE BACK CABIN</span>
+          <span id="cabin-passenger-state">STABLE</span>
+        </div>
+      </div>
+
+      <!-- Right Head-Check Indicator -->
+      <div class="look-indicator" id="look-right-pill" title="Hold E to look 90° Right">
+        LOOK RIGHT ► <span class="key-badge">E</span>
+      </div>
+    </div>
+
+    <!-- Left Wing Mirror (Blind Spot / Overtaking Lane) -->
+    <div id="left-mirror-wrapper" class="mirror-housing side-mirror left-mirror">
+      <div class="mirror-header">
+        <span>LEFT WING MIRROR</span>
+        <span id="left-blindspot-alert" class="blindspot-led" title="Blind Spot Sensor">●</span>
+      </div>
+      <div id="mirror-left-rect" class="mirror-viewport"></div>
+      <div class="mirror-warning-text">OBJECTS IN MIRROR ARE CLOSER THAN THEY APPEAR</div>
+    </div>
+
+    <!-- Right Wing Mirror (Curb / Cyclist / Crosswalk Corner) -->
+    <div id="right-mirror-wrapper" class="mirror-housing side-mirror right-mirror">
+      <div class="mirror-header">
+        <span id="right-blindspot-alert" class="blindspot-led" title="Blind Spot Sensor">●</span>
+        <span>RIGHT WING MIRROR</span>
+      </div>
+      <div id="mirror-right-rect" class="mirror-viewport"></div>
+      <div class="mirror-warning-text">CHECK CURB &amp; PEDESTRIANS</div>
+    </div>
+
+    <!-- Live Cabin Vocal / Scream / Radio Subtitle Toast -->
+    <div id="cabin-comms-banner" class="comms-banner hidden">
+      <div class="comms-icon" id="comms-icon">🚑</div>
+      <div class="comms-content">
+        <div class="comms-speaker" id="comms-speaker">PARAMEDIC (REAR CABIN)</div>
+        <div class="comms-text" id="comms-text">"Watch the crossroad! Keep it smooth!"</div>
+      </div>
+    </div>
+
+    <!-- Crossroad Distance & Traffic Light HUD Pill -->
+    <div id="intersection-hud">
+      <div class="hud-metric">
+        <span class="metric-label">CROSSROAD</span>
+        <span class="metric-value" id="crossroad-dist-val">180 m</span>
+      </div>
+      <div class="hud-metric">
+        <span class="metric-label">SIGNAL</span>
+        <span class="signal-dot red" id="hud-signal-dot"></span>
+        <span class="metric-value" id="hud-signal-text">RED LIGHT</span>
+      </div>
+      <div class="hud-metric">
+        <span class="metric-label">CROSS CLEARED</span>
+        <span class="metric-value" id="crossings-count-val">0 / 3</span>
+      </div>
+      <div class="hud-metric">
+        <span class="metric-label">TIME</span>
+        <span class="metric-value" id="mission-timer-val">00:45.0</span>
+      </div>
+      <button id="open-config-btn" class="hud-action-btn" title="Open Free-Play Scenario Configurator (Esc)">
+        ⚙ CONFIGURE SCENARIO
+      </button>
+    </div>
+
+    <!-- Bottom 3D Dashboard & Cockpit Controls -->
+    <div id="cockpit-dashboard">
+      <!-- Left Panel: Patient Vitals / Cabin Stress Monitor -->
+      <div class="dash-module vitals-module">
+        <div class="module-title">
+          <span id="cabin-monitor-title">PATIENT VITALS &amp; CABIN STRESS</span>
+          <span id="vitals-bpm" class="bpm-readout">♥ 92 BPM</span>
+        </div>
+        <canvas id="ecg-canvas" width="240" height="52"></canvas>
+        <div class="meter-row">
+          <span class="meter-label" id="stability-label">PATIENT STABILITY</span>
+          <div class="progress-bar-bg">
+            <div id="stability-bar-fill" class="progress-bar-fill good" style="width: 100%;"></div>
+          </div>
+          <span id="stability-pct" class="meter-val">100%</span>
+        </div>
+        <div class="meter-row">
+          <span class="meter-label">G-FORCE JOLT</span>
+          <div class="progress-bar-bg">
+            <div id="gforce-bar-fill" class="progress-bar-fill neutral" style="width: 5%;"></div>
+          </div>
+          <span id="gforce-val" class="meter-val">0.1 G</span>
+        </div>
+      </div>
+
+      <!-- Center Panel: Steering Wheel Silhouette & Speedometer -->
+      <div class="dash-module center-gauge-module">
+        <div class="speed-cluster">
+          <div class="speed-digits" id="speed-val">0</div>
+          <div class="speed-unit">KM/H</div>
+          <div class="gear-indicator" id="gear-val">D</div>
+        </div>
+        <div id="steering-wheel-visual">
+          <div class="wheel-rim">
+            <div class="wheel-top-marker"></div>
+            <div class="wheel-spoke left"></div>
+            <div class="wheel-spoke right"></div>
+            <div class="wheel-spoke bottom"></div>
+            <div class="wheel-hub" id="wheel-hub-badge">EMS</div>
+          </div>
+        </div>
+        <div class="controls-hint-row">
+          <span><kbd>W</kbd><kbd>S</kbd> Drive/Brake</span>
+          <span><kbd>A</kbd><kbd>D</kbd> Steer</span>
+          <span><kbd>Q</kbd><kbd>E</kbd> Look L/R</span>
+          <span><kbd>C</kbd> Cabin Mirror</span>
+        </div>
+      </div>
+
+      <!-- Right Panel: Emergency Siren & Strobe Control Console -->
+      <div class="dash-module siren-module">
+        <div class="module-title">
+          <span>EMERGENCY SIREN &amp; LIGHTBAR CONSOLE</span>
+          <span id="siren-alert-radius-badge" class="radius-badge">ALERT: 0m</span>
+        </div>
+        <div class="siren-buttons-grid">
+          <button class="siren-btn active" data-mode="OFF" id="siren-btn-off">
+            <span class="key-hint">1</span>
+            <span class="btn-main">SIREN OFF</span>
+            <span class="btn-sub">Stealth / Calm</span>
+          </button>
+          <button class="siren-btn" data-mode="WAIL" id="siren-btn-wail">
+            <span class="key-hint">2</span>
+            <span class="btn-main">WAIL</span>
+            <span class="btn-sub">Long Range</span>
+          </button>
+          <button class="siren-btn" data-mode="YELP" id="siren-btn-yelp">
+            <span class="key-hint">3</span>
+            <span class="btn-main">YELP</span>
+            <span class="btn-sub">Crossroad Clear</span>
+          </button>
+          <button class="siren-btn" data-mode="PHASER" id="siren-btn-phaser">
+            <span class="key-hint">4</span>
+            <span class="btn-main">PHASER</span>
+            <span class="btn-sub">High Priority!</span>
+          </button>
+        </div>
+        <div class="siren-aux-row">
+          <button id="airhorn-btn" class="aux-btn horn-btn">
+            <span class="key-hint">SPACE</span> 📢 BLAST AIR HORN
+          </button>
+          <button id="lights-toggle-btn" class="aux-btn lights-btn active">
+            <span class="key-hint">L</span> 🚨 STROBES: ON
+          </button>
+          <button id="pa-voice-btn" class="aux-btn pa-btn" title="Broadcast PA Megaphone command to clear pedestrians (V)">
+            <span class="key-hint">V</span> 🎙 PA CLEAR
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Free-Play Scenario Configurator Modal -->
+  <div id="scenario-modal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <span class="eyebrow-badge">EMERGENCY RESPONSE SIMULATOR</span>
+          <h1>Free-Play Crossroad Scenario Configurator</h1>
+          <p class="subtitle">Configure your emergency vehicle, intersection difficulty, pedestrian hazards, and cabin urgency before taking the wheel.</p>
+        </div>
+      </div>
+
+      <div class="config-grid">
+        <!-- Step 1: Vehicle Selection -->
+        <div class="config-section">
+          <h2>1. Select Emergency Vehicle</h2>
+          <div class="vehicle-cards" id="vehicle-selector">
+            <div class="select-card active" data-vehicle="AMBULANCE">
+              <div class="card-icon">🚑</div>
+              <div class="card-title">Ambulance (Medic-1)</div>
+              <div class="card-desc">Critical trauma patient &amp; paramedic in back. Hard braking or sharp swerves cause patient screaming and rapid vitals loss.</div>
+              <div class="card-stats">
+                <span>Weight: Medium</span> • <span>Cabin Sensitivity: HIGH</span>
+              </div>
+            </div>
+
+            <div class="select-card" data-vehicle="FIRETRUCK">
+              <div class="card-icon">🚒</div>
+              <div class="card-title">Firetruck (Engine-9)</div>
+              <div class="card-desc">Heavy ladder pumper with long braking distance and wide blind spots. Crew calls out crossroad hazards over the intercom.</div>
+              <div class="card-stats">
+                <span>Weight: Heavy</span> • <span>Braking Distance: LONG</span>
+              </div>
+            </div>
+
+            <div class="select-card" data-vehicle="POLICE">
+              <div class="card-icon">🚓</div>
+              <div class="card-title">Police Interceptor (Unit-42)</div>
+              <div class="card-desc">High-speed cruiser with an unruly suspect screaming in the back cage and frantic dispatch traffic. Fast entry speed into intersections.</div>
+              <div class="card-stats">
+                <span>Speed: Very High</span> • <span>Distraction: HIGH</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Crossroad Difficulty -->
+        <div class="config-section">
+          <h2>2. Crossroad Difficulty Tier</h2>
+          <div class="difficulty-cards" id="difficulty-selector">
+            <div class="select-card" data-difficulty="1">
+              <div class="card-header-line">
+                <span class="card-title">Level 1 — Suburban 4-Way</span>
+                <span class="diff-badge easy">EASY</span>
+              </div>
+              <div class="card-desc">Open sightlines, light cross-traffic, cooperative drivers, few crosswalk pedestrians.</div>
+            </div>
+
+            <div class="select-card active" data-difficulty="2">
+              <div class="card-header-line">
+                <span class="card-title">Level 2 — Downtown Blind Crossroad</span>
+                <span class="diff-badge medium">MEDIUM</span>
+              </div>
+              <div class="card-desc">Corner buildings &amp; box trucks block cross-street sightlines. Includes distracted phone-zombie pedestrians and blind-spot cyclists.</div>
+            </div>
+
+            <div class="select-card" data-difficulty="3">
+              <div class="card-header-line">
+                <span class="card-title">Level 3 — Rush Hour Gridlock</span>
+                <span class="diff-badge hard">HARD</span>
+              </div>
+              <div class="card-desc">Dense multi-lane cross traffic, panicked drivers freezing in the box, overtaking motorcycles in wing mirrors, and crowded crosswalks.</div>
+            </div>
+
+            <div class="select-card" data-difficulty="4">
+              <div class="card-header-line">
+                <span class="card-title">Level 4 — Code Red Chaos</span>
+                <span class="diff-badge extreme">EXTREME</span>
+              </div>
+              <div class="card-desc">Maximum cross-traffic speed, aggressive red-light runners, jaywalkers, fragile patient vitals, and tight response timer.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Environment & Obstacles Fine-Tuning -->
+        <div class="config-section full-width">
+          <h2>3. Custom Obstacle &amp; Cabin Parameters</h2>
+          <div class="sliders-row">
+            <div class="param-control">
+              <label for="cfg-weather">Environment / Visibility</label>
+              <select id="cfg-weather">
+                <option value="DAY">☀️ Clear Daylight</option>
+                <option value="DUSK">🌇 Golden Hour / Glare</option>
+                <option value="NIGHT_RAIN">🌧️ Night Rain &amp; Wet Asphalt (Slippery)</option>
+                <option value="FOG">🌫️ Dense Fog (Short Sightlines)</option>
+              </select>
+            </div>
+
+            <div class="param-control">
+              <label for="cfg-same-dir-traffic">Traffic in Your Direction</label>
+              <select id="cfg-same-dir-traffic">
+                <option value="NONE">None (Clear Forward Lanes)</option>
+                <option value="LOW">Light (Occasional Cars Ahead)</option>
+                <option value="MEDIUM" selected>Medium (Moving Cars + Red-Light Queues)</option>
+                <option value="HIGH">Heavy (Dense Forward Traffic &amp; Gridlock)</option>
+              </select>
+            </div>
+
+            <div class="param-control">
+              <label for="cfg-pedestrians">Pedestrian Crosswalk Density</label>
+              <select id="cfg-pedestrians">
+                <option value="LOW">Low (Occasional Walkers)</option>
+                <option value="MEDIUM" selected>Medium (Walkers + Phone Zombies)</option>
+                <option value="HIGH">High (Crowded Crosswalk + Strollers + Jaywalkers)</option>
+              </select>
+            </div>
+
+            <div class="param-control">
+              <label for="cfg-scream-intensity">Back-Cabin Urgency / Screaming</label>
+              <select id="cfg-scream-intensity">
+                <option value="NORMAL">Normal (React on Hard Braking / Siren Delay)</option>
+                <option value="INTENSE" selected>Intense (Frequent Patient Screams &amp; Paramedic Alerts)</option>
+                <option value="MUTE_VOICE">Synth SFX Only (Disable Web Speech Voice)</option>
+              </select>
+            </div>
+
+            <div class="param-control">
+              <label for="cfg-crossings-goal">Intersections to Clear</label>
+              <select id="cfg-crossings-goal">
+                <option value="1">1 Crossroad (Quick Drill)</option>
+                <option value="3" selected>3 Crossroads (Standard Dispatch Run)</option>
+                <option value="5">5 Crossroads (Endurance Shift)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div class="pro-tips">
+          <strong>Driver Briefing:</strong> Check your <strong>Left &amp; Right Wing Mirrors</strong> before swerving around stopped cars (cyclists pass in your blind spot!). Switch from <strong>Wail [2]</strong> to <strong>Yelp [3] / Phaser [4]</strong> and blast the <strong>Air Horn [Space]</strong> before entering red-light crossroads so cross-traffic and pedestrians stop in time.
+        </div>
+        <button id="start-scenario-btn" class="primary-launch-btn">
+          🚨 START EMERGENCY RUN
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Run Result / Incident Debrief Modal -->
+  <div id="debrief-modal" class="modal-backdrop hidden">
+    <div class="modal-card debrief-card">
+      <div class="eyebrow-badge" id="debrief-badge">INCIDENT REPORT</div>
+      <h1 id="debrief-title">Crossroad Run Complete</h1>
+      <p id="debrief-reason" class="subtitle">You navigated all emergency intersections.</p>
+
+      <div class="stats-summary-grid">
+        <div class="stat-box">
+          <span class="stat-label">CROSSROADS CLEARED</span>
+          <span class="stat-num" id="debrief-crossings">3 / 3</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">PATIENT / CABIN STABILITY</span>
+          <span class="stat-num" id="debrief-stability">94%</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">NEAR MISSES &amp; ALERTS</span>
+          <span class="stat-num" id="debrief-nearmisses">2</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">FINAL RATING</span>
+          <span class="stat-num highlight" id="debrief-grade">S</span>
+        </div>
+      </div>
+
+      <div class="debrief-actions">
+        <button id="retry-scenario-btn" class="primary-launch-btn">↻ RETRY SAME SCENARIO</button>
+        <button id="reconfigure-btn" class="secondary-btn">⚙ CHANGE SCENARIO SETTINGS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Scripts -->
+  <script src="js/audio.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/traffic.js"></script>
+  <script src="js/vehicle.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
