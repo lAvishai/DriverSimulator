@@ -411,12 +411,12 @@
 
       this.lookAngleCurrent = THREE.MathUtils.lerp(this.lookAngleCurrent, this.lookAngleTarget, dt * 10);
 
-      const pitchDive = THREE.MathUtils.clamp(accelMs2 * 0.0045, -0.08, 0.06);
+
       const bodyRoll = THREE.MathUtils.clamp(-angularVel * this.speedMs * 0.0035, -0.07, 0.07);
 
       this.driverCamera.rotation.order = 'YXZ';
       this.driverCamera.rotation.y = this.lookAngleCurrent;
-      this.driverCamera.rotation.x = pitchDive;
+      this.driverCamera.rotation.x = 0;
       this.driverCamera.rotation.z = bodyRoll;
 
       if (this.passengerGroup) {
