@@ -996,7 +996,7 @@
         }
 
         // Periodic ambient patient screaming / dispatch urgency in back cabin
-        const ambientInterval = this.config.screamIntensity === 'INTENSE' ? 9.5 : 16.0;
+        const ambientInterval = this.config.screamIntensity === 'INTENSE' ? 6.5 : 11.0;
         if (this.elapsedTime - this.lastAmbientVocalElapsed > ambientInterval) {
           this.lastAmbientVocalElapsed = this.elapsedTime;
           this.audio.triggerCabinVocal('AMBIENT_PAIN');

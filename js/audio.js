@@ -456,11 +456,13 @@
         const dict = {
           HARD_BRAKE: [
             { icon: '😫', speaker: 'PATIENT (REAR STRETCHER)', text: '"AAAAAGH! My chest! Stop slamming the brakes!"', speechText: 'Aaaagh! My chest! Stop slamming the brakes!', pitch: 1.45, rate: 1.25, isScream: true, highPitch: true },
+            { icon: '😱', speaker: 'PATIENT (REAR STRETCHER)', text: '"Anat !"', speechText: 'Anat!', pitch: 1.48, rate: 1.2, isScream: true, highPitch: true },
             { icon: '🩺', speaker: 'PARAMEDIC (REAR CABIN)', text: '"Whoa! Easy on the brakes! You just tore the IV line!"', speechText: 'Whoa! Easy on the brakes! You just tore the IV line!', pitch: 1.15, rate: 1.25, isScream: true, highPitch: false },
             { icon: '😱', speaker: 'PATIENT (REAR STRETCHER)', text: '"OWWW! Please, it hurts so much! Drive smoother!"', speechText: 'Owww! Please, it hurts so much! Drive smoother!', pitch: 1.5, rate: 1.2, isScream: true, highPitch: true }
           ],
           SHARP_SWERVE: [
             { icon: '🤢', speaker: 'PATIENT (REAR STRETCHER)', text: '"AAAH! My leg! Stop throwing me side to side!"', speechText: 'Aaah! My leg! Stop throwing me side to side!', pitch: 1.4, rate: 1.22, isScream: true, highPitch: true },
+            { icon: '😰', speaker: 'PATIENT (REAR STRETCHER)', text: '"Anat !"', speechText: 'Anat!', pitch: 1.45, rate: 1.2, isScream: true, highPitch: true },
             { icon: '🩺', speaker: 'PARAMEDIC (REAR CABIN)', text: '"Hold the wheel steady! I am trying to intubate back here!"', speechText: 'Hold the wheel steady! I am trying to intubate back here!', pitch: 1.1, rate: 1.25, isScream: false }
           ],
           CROSSROAD_APPROACH_SILENT: [
@@ -470,6 +472,8 @@
            AMBIENT_PAIN: [
             { icon: '😣', speaker: 'PATIENT (REAR STRETCHER)', text: '"Aaaahhh... doctor, please hurry! Everything is spinning!"', speechText: 'Aaaahhh... doctor, please hurry! Everything is spinning!', pitch: 1.38, rate: 1.15, isScream: true, highPitch: false },
             { icon: '😰', speaker: 'PATIENT (REAR STRETCHER)', text: '"Anat please help me !"', speechText: 'Anat, please help me!', pitch: 1.42, rate: 1.18, isScream: true, highPitch: true },
+            { icon: '😱', speaker: 'PATIENT (REAR STRETCHER)', text: '"Anat !"', speechText: 'Anat!', pitch: 1.48, rate: 1.2, isScream: true, highPitch: true },
+            { icon: '😰', speaker: 'PATIENT (REAR STRETCHER)', text: '"Anat !"', speechText: 'Anat!', pitch: 1.44, rate: 1.18, isScream: true, highPitch: true },
             { icon: '🩺', speaker: 'PARAMEDIC (REAR CABIN)', text: '"Blood pressure dropping! Clear this next crossroad fast!"', speechText: 'Blood pressure dropping! Clear this next crossroad fast!', pitch: 1.12, rate: 1.22, isScream: false }
           ],
           NEAR_MISS: [
