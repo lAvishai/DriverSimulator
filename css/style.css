@@ -31,6 +31,7 @@ body, html {
   position: relative;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -1199,30 +1200,70 @@ body.is-touch-device #mobile-controls {
     display: block;
   }
 
+  .mobile-steer-zone {
+    left: max(10px, env(safe-area-inset-left));
+    bottom: max(10px, env(safe-area-inset-bottom));
+  }
+
+  .touch-steer-pad {
+    width: 152px;
+    height: 58px;
+  }
+
+  .steer-knob {
+    width: 46px;
+    height: 46px;
+  }
+
+  .mobile-pedals-zone {
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    gap: 6px;
+  }
+
+  .touch-horn-btn {
+    padding: 5px 12px;
+    font-size: 10px;
+  }
+
+  .touch-pedal {
+    width: 58px;
+    height: 62px;
+    border-radius: 12px;
+  }
+
+  .pedal-icon {
+    font-size: 17px;
+  }
+
+  .pedal-label {
+    font-size: 9px;
+  }
+
   #top-cockpit-bar {
     top: 4px;
     gap: 8px;
   }
 
   .center-mirror {
-    width: 220px;
-    height: 76px;
+    width: 210px;
+    height: 70px;
     border-width: 3px;
   }
 
   .side-mirror {
-    top: 86px;
-    width: 132px;
-    height: 86px;
+    top: 76px;
+    width: 124px;
+    height: 78px;
     border-width: 3px;
   }
 
   .left-mirror {
-    left: 8px;
+    left: max(8px, env(safe-area-inset-left));
   }
 
   .right-mirror {
-    right: 8px;
+    right: max(8px, env(safe-area-inset-right));
   }
 
   .mirror-header {
@@ -1278,10 +1319,13 @@ body.is-touch-device #mobile-controls {
   }
 
   #cockpit-dashboard {
-    height: 114px;
-    padding: 6px 10px;
-    gap: 8px;
+    left: max(168px, calc(env(safe-area-inset-left) + 162px));
+    right: max(142px, calc(env(safe-area-inset-right) + 136px));
+    height: 94px;
+    padding: 5px 8px;
+    gap: 6px;
     grid-template-columns: 1fr 0.65fr 1.35fr;
+    border-radius: 12px 12px 0 0;
   }
 
   .dash-module {
