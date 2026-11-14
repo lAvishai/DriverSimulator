@@ -28,11 +28,12 @@
       this.lastEcgBeep = 0;
       this.lastVocalTime = 0;
       this.commsTimeout = null;
+      this.isFocusMuted = false;
     }
 
     init() {
       if (this.initialized) {
-        if (this.ctx && this.ctx.state === 'suspended') {
+        if (!this.isFocusMuted && this.ctx && this.ctx.state === 'suspended') {
           this.ctx.resume();
         }
         return;
@@ -154,6 +155,22 @@
 
       const now = this.ctx.currentTime;
       this.hornGain.gain.setTargetAtTime(active ? 0.28 : 0.0, now, 0.03);
+    }
+
+    setFocusMuted(muted) {
+      this.isFocusMuted = muted;
+      if (!this.initialized || !this.ctx) return;
+
+      if (muted) {
+        if (window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+        }
+        if (this.ctx.state === 'running') {
+          this.ctx.suspend();
+        }
+      } else if (!document.hidden && this.ctx.state === 'suspended') {
+        this.ctx.resume();
+      }
     }
 
     stopAll() {

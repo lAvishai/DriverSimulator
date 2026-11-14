@@ -76,6 +76,17 @@
       this.bindKeyboardEvents();
       this.bindMobileControls();
       window.addEventListener('resize', () => this.onResize());
+      document.addEventListener('visibilitychange', () => {
+        this.audio.setFocusMuted(document.hidden);
+      });
+      window.addEventListener('blur', () => {
+        this.audio.setFocusMuted(true);
+      });
+      window.addEventListener('focus', () => {
+        if (!document.hidden) {
+          this.audio.setFocusMuted(false);
+        }
+      });
 
       // Build an initial preview background scene behind the configurator modal
       this.world.buildScenarioWorld(this.config);

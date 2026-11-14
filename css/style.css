@@ -1017,8 +1017,8 @@ body.is-touch-device #mobile-controls {
 
 .mobile-steer-zone {
   position: absolute;
-  left: max(14px, env(safe-area-inset-left));
-  bottom: 132px;
+  left: max(10px, env(safe-area-inset-left));
+  bottom: max(10px, env(safe-area-inset-bottom));
   pointer-events: auto;
 }
 
@@ -1082,13 +1082,19 @@ body.is-touch-device #mobile-controls {
 
 .mobile-pedals-zone {
   position: absolute;
-  right: max(14px, env(safe-area-inset-right));
-  bottom: 132px;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 8px;
   pointer-events: auto;
+}
+
+body.is-touch-device #cockpit-dashboard {
+  left: max(168px, calc(env(safe-area-inset-left) + 162px));
+  right: max(142px, calc(env(safe-area-inset-right) + 136px));
+  border-radius: 12px 12px 0 0;
 }
 
 .touch-horn-btn {
