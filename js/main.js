@@ -645,12 +645,12 @@
       document.getElementById('debrief-stability').textContent = `${stab}%`;
       document.getElementById('debrief-nearmisses').textContent = `${this.nearMissCount}`;
 
-      let grade = 'F';
+      let grade = 'FAILED';
       if (success) {
-        if (stab >= 85) grade = 'S';
-        else if (stab >= 70) grade = 'A';
-        else if (stab >= 50) grade = 'B';
-        else grade = 'C';
+        if (stab >= 85) grade = 'EXCELLENT';
+        else if (stab >= 70) grade = 'GOOD';
+        else if (stab >= 50) grade = 'FAIR';
+        else grade = 'POOR';
       }
       document.getElementById('debrief-grade').textContent = grade;
     }

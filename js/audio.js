@@ -469,6 +469,7 @@
           ],
            AMBIENT_PAIN: [
             { icon: '😣', speaker: 'PATIENT (REAR STRETCHER)', text: '"Aaaahhh... doctor, please hurry! Everything is spinning!"', speechText: 'Aaaahhh... doctor, please hurry! Everything is spinning!', pitch: 1.38, rate: 1.15, isScream: true, highPitch: false },
+            { icon: '😰', speaker: 'PATIENT (REAR STRETCHER)', text: '"Anat please help me !"', speechText: 'Anat, please help me!', pitch: 1.42, rate: 1.18, isScream: true, highPitch: true },
             { icon: '🩺', speaker: 'PARAMEDIC (REAR CABIN)', text: '"Blood pressure dropping! Clear this next crossroad fast!"', speechText: 'Blood pressure dropping! Clear this next crossroad fast!', pitch: 1.12, rate: 1.22, isScream: false }
           ],
           NEAR_MISS: [
