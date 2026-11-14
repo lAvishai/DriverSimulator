@@ -7,12 +7,18 @@
   class EmergencySimulatorApp {
     constructor() {
       this.canvas = document.getElementById('game-canvas');
-      this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      this.renderer = new THREE.WebGLRenderer({
+        canvas: this.canvas,
+        antialias: true,
+        powerPreference: 'high-performance'
+      });
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       this.renderer.setSize(window.innerWidth, window.innerHeight);
       this.renderer.autoClear = false;
       this.renderer.shadowMap.enabled = true;
-      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      this.renderer.shadowMap.type = THREE.PCFShadowMap;
+      this.renderer.shadowMap.autoUpdate = false;
+      this.renderer.shadowMap.needsUpdate = true;
 
       this.scene = new THREE.Scene();
       this.audio = new window.EmergencyAudioEngine();
@@ -59,6 +65,13 @@
       this.ecgPoints = new Array(120).fill(26);
       this.ecgPhase = 0;
 
+      this.viewportW = window.innerWidth;
+      this.viewportH = window.innerHeight;
+      this.mirrorRects = {};
+      this.hudCache = {};
+      this.lastHudValues = {};
+      this.cacheHUDElements();
+
       this.bindUIEvents();
       this.bindKeyboardEvents();
       this.bindMobileControls();
@@ -68,6 +81,7 @@
       this.world.buildScenarioWorld(this.config);
       this.traffic.spawnForScenario(this.config, this.world.crossroadZPositions);
       this.player.configure(this.config.vehicle, this.config.weather);
+      this.updateMirrorRects();
 
       this.lastFrameTime = performance.now();
       requestAnimationFrame((t) => this.animate(t));
@@ -537,7 +551,9 @@
       this.elapsedTime = 0;
       this.lastAmbientVocalElapsed = 0;
       this.silentApproachWarnedIndex = -1;
+      this.lastHudValues = {};
       this.isRunning = true;
+      this.updateMirrorRects();
 
       // Initial dispatch/patient vocal callout
       setTimeout(() => {
@@ -628,82 +644,175 @@
       document.getElementById('debrief-grade').textContent = grade;
     }
 
+    cacheHUDElements() {
+      this.hudCache = {
+        speedVal: document.getElementById('speed-val'),
+        gearVal: document.getElementById('gear-val'),
+        wheelRim: document.querySelector('#steering-wheel-visual .wheel-rim'),
+        stabBar: document.getElementById('stability-bar-fill'),
+        stabPct: document.getElementById('stability-pct'),
+        gforceBar: document.getElementById('gforce-bar-fill'),
+        gforceVal: document.getElementById('gforce-val'),
+        bpmEl: document.getElementById('vitals-bpm'),
+        cabinStateEl: document.getElementById('cabin-passenger-state'),
+        vignette: document.getElementById('stress-vignette'),
+        leftBlindspot: document.getElementById('left-blindspot-alert'),
+        rightBlindspot: document.getElementById('right-blindspot-alert'),
+        sirenRadiusBadge: document.getElementById('siren-alert-radius-badge'),
+        crossroadDist: document.getElementById('crossroad-dist-val'),
+        signalDot: document.getElementById('hud-signal-dot'),
+        signalText: document.getElementById('hud-signal-text'),
+        crossingsCount: document.getElementById('crossings-count-val'),
+        missionTimer: document.getElementById('mission-timer-val'),
+        mirrorLeft: document.getElementById('mirror-left-rect'),
+        mirrorRight: document.getElementById('mirror-right-rect'),
+        mirrorCenter: document.getElementById('mirror-center-rect')
+      };
+    }
+
+    updateMirrorRects() {
+      const h = this.viewportH;
+      const entries = [
+        ['mirror-left-rect', this.hudCache.mirrorLeft],
+        ['mirror-right-rect', this.hudCache.mirrorRight],
+        ['mirror-center-rect', this.hudCache.mirrorCenter]
+      ];
+      for (let i = 0; i < entries.length; i++) {
+        const [id, el] = entries[i];
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          this.mirrorRects[id] = {
+            left: Math.round(rect.left),
+            bottom: Math.round(h - rect.bottom),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+            aspect: rect.width / rect.height
+          };
+        } else {
+          delete this.mirrorRects[id];
+        }
+      }
+    }
+
     updateHUD(nextCrossroad, trafficStatus) {
+      const h = this.hudCache;
+      const prev = this.lastHudValues;
+
       const speedKmh = Math.round(Math.abs(this.player.speedMs) * 3.6);
-      document.getElementById('speed-val').textContent = speedKmh;
-      document.getElementById('gear-val').textContent = this.player.speedMs < -0.2 ? 'R' : 'D';
+      if (prev.speedKmh !== speedKmh) {
+        prev.speedKmh = speedKmh;
+        h.speedVal.textContent = speedKmh;
+      }
+
+      const gear = this.player.speedMs < -0.2 ? 'R' : 'D';
+      if (prev.gear !== gear) {
+        prev.gear = gear;
+        h.gearVal.textContent = gear;
+      }
 
       // Steering wheel rotation visual
-      const wheelRim = document.querySelector('#steering-wheel-visual .wheel-rim');
-      if (wheelRim) {
-        wheelRim.style.transform = `rotate(${-this.player.steerAngle * 115}deg)`;
+      if (h.wheelRim) {
+        const deg = Math.round(-this.player.steerAngle * 115);
+        if (prev.wheelDeg !== deg) {
+          prev.wheelDeg = deg;
+          h.wheelRim.style.transform = `rotate(${deg}deg)`;
+        }
       }
 
       // Patient Stability & G-Force bars
       const stab = Math.round(this.player.stability);
-      const stabBar = document.getElementById('stability-bar-fill');
-      stabBar.style.width = `${stab}%`;
-      stabBar.className = `progress-bar-fill ${stab > 65 ? 'good' : stab > 35 ? 'warn' : 'danger'}`;
-      document.getElementById('stability-pct').textContent = `${stab}%`;
+      if (prev.stab !== stab) {
+        prev.stab = stab;
+        h.stabBar.style.width = `${stab}%`;
+        h.stabBar.className = `progress-bar-fill ${stab > 65 ? 'good' : stab > 35 ? 'warn' : 'danger'}`;
+        h.stabPct.textContent = `${stab}%`;
+      }
 
       const gVal = this.player.totalG.toFixed(1);
-      const gPct = Math.min(100, Math.round(this.player.totalG * 55));
-      document.getElementById('gforce-bar-fill').style.width = `${gPct}%`;
-      document.getElementById('gforce-val').textContent = `${gVal} G`;
+      if (prev.gVal !== gVal) {
+        prev.gVal = gVal;
+        const gPct = Math.min(100, Math.round(this.player.totalG * 55));
+        h.gforceBar.style.width = `${gPct}%`;
+        h.gforceVal.textContent = `${gVal} G`;
+      }
 
-      const bpmEl = document.getElementById('vitals-bpm');
       const bpm = Math.round(this.player.bpm);
-      bpmEl.textContent = `♥ ${bpm} BPM`;
-      bpmEl.classList.toggle('critical', bpm > 125);
+      if (prev.bpm !== bpm) {
+        prev.bpm = bpm;
+        h.bpmEl.textContent = `♥ ${bpm} BPM`;
+        h.bpmEl.classList.toggle('critical', bpm > 125);
+      }
 
       // Cabin status badge in Center Mirror
-      const cabinStateEl = document.getElementById('cabin-passenger-state');
-      if (this.player.totalG > 0.75) {
-        cabinStateEl.textContent = '⚠ SCREAMING / HIGH G!';
-        cabinStateEl.style.color = '#f87171';
-      } else if (stab < 45) {
-        cabinStateEl.textContent = '⚠ CRITICAL DISTRESS';
-        cabinStateEl.style.color = '#fbbf24';
-      } else {
-        cabinStateEl.textContent = 'STABLE';
-        cabinStateEl.style.color = '#4ade80';
+      const cabinMode = this.player.totalG > 0.75 ? 2 : stab < 45 ? 1 : 0;
+      if (prev.cabinMode !== cabinMode) {
+        prev.cabinMode = cabinMode;
+        if (cabinMode === 2) {
+          h.cabinStateEl.textContent = '⚠ SCREAMING / HIGH G!';
+          h.cabinStateEl.style.color = '#f87171';
+        } else if (cabinMode === 1) {
+          h.cabinStateEl.textContent = '⚠ CRITICAL DISTRESS';
+          h.cabinStateEl.style.color = '#fbbf24';
+        } else {
+          h.cabinStateEl.textContent = 'STABLE';
+          h.cabinStateEl.style.color = '#4ade80';
+        }
       }
 
       // Red vignette when patient stability is low or G-force is high
-      const vignette = document.getElementById('stress-vignette');
-      if (this.player.totalG > 0.85 || stab < 35) {
-        vignette.style.boxShadow = 'inset 0 0 85px rgba(239, 68, 68, 0.55)';
-      } else {
-        vignette.style.boxShadow = 'inset 0 0 0px rgba(239, 68, 68, 0)';
+      const vignetteActive = this.player.totalG > 0.85 || stab < 35;
+      if (prev.vignetteActive !== vignetteActive) {
+        prev.vignetteActive = vignetteActive;
+        h.vignette.style.boxShadow = vignetteActive
+          ? 'inset 0 0 85px rgba(239, 68, 68, 0.55)'
+          : 'inset 0 0 0px rgba(239, 68, 68, 0)';
       }
 
       // Left & Right Wing Mirror Blind-Spot Alert LEDs
-      document
-        .getElementById('left-blindspot-alert')
-        .classList.toggle('danger', trafficStatus.leftBlindSpotDanger);
-      document
-        .getElementById('right-blindspot-alert')
-        .classList.toggle('danger', trafficStatus.rightBlindSpotDanger);
+      if (prev.leftBlind !== trafficStatus.leftBlindSpotDanger) {
+        prev.leftBlind = trafficStatus.leftBlindSpotDanger;
+        h.leftBlindspot.classList.toggle('danger', trafficStatus.leftBlindSpotDanger);
+      }
+      if (prev.rightBlind !== trafficStatus.rightBlindSpotDanger) {
+        prev.rightBlind = trafficStatus.rightBlindSpotDanger;
+        h.rightBlindspot.classList.toggle('danger', trafficStatus.rightBlindSpotDanger);
+      }
 
       // Siren Alert Radius Badge
-      document.getElementById('siren-alert-radius-badge').textContent = `ALERT: ${trafficStatus.alertRadius}m`;
+      if (prev.alertRadius !== trafficStatus.alertRadius) {
+        prev.alertRadius = trafficStatus.alertRadius;
+        h.sirenRadiusBadge.textContent = `ALERT: ${trafficStatus.alertRadius}m`;
+      }
 
       // Top Crossroad HUD
       if (nextCrossroad) {
-        document.getElementById('crossroad-dist-val').textContent = `${nextCrossroad.distance} m`;
-        const dot = document.getElementById('hud-signal-dot');
-        const sigText = document.getElementById('hud-signal-text');
-        dot.className = `signal-dot ${nextCrossroad.state.toLowerCase()}`;
-        sigText.textContent = `${nextCrossroad.state} LIGHT`;
-      } else {
-        document.getElementById('crossroad-dist-val').textContent = 'CLEAR';
+        if (prev.crossDist !== nextCrossroad.distance) {
+          prev.crossDist = nextCrossroad.distance;
+          h.crossroadDist.textContent = `${nextCrossroad.distance} m`;
+        }
+        if (prev.crossState !== nextCrossroad.state) {
+          prev.crossState = nextCrossroad.state;
+          h.signalDot.className = `signal-dot ${nextCrossroad.state.toLowerCase()}`;
+          h.signalText.textContent = `${nextCrossroad.state} LIGHT`;
+        }
+      } else if (prev.crossDist !== 'CLEAR') {
+        prev.crossDist = 'CLEAR';
+        h.crossroadDist.textContent = 'CLEAR';
       }
 
-      document.getElementById('crossings-count-val').textContent = `${this.crossingsCleared} / ${this.config.crossingsGoal}`;
+      if (prev.crossCleared !== this.crossingsCleared) {
+        prev.crossCleared = this.crossingsCleared;
+        h.crossingsCount.textContent = `${this.crossingsCleared} / ${this.config.crossingsGoal}`;
+      }
 
-      const mins = String(Math.floor(this.elapsedTime / 60)).padStart(2, '0');
-      const secs = (this.elapsedTime % 60).toFixed(1).padStart(4, '0');
-      document.getElementById('mission-timer-val').textContent = `${mins}:${secs}`;
+      const timerTenth = Math.floor(this.elapsedTime * 10);
+      if (prev.timerTenth !== timerTenth) {
+        prev.timerTenth = timerTenth;
+        const mins = String(Math.floor(this.elapsedTime / 60)).padStart(2, '0');
+        const secs = (this.elapsedTime % 60).toFixed(1).padStart(4, '0');
+        h.missionTimer.textContent = `${mins}:${secs}`;
+      }
     }
 
     updateEcgCanvas(dt) {
@@ -755,37 +864,37 @@
     onResize() {
       const w = window.innerWidth;
       const h = window.innerHeight;
+      this.viewportW = w;
+      this.viewportH = h;
       this.renderer.setSize(w, h);
       this.player.driverCamera.aspect = w / h;
       this.player.driverCamera.updateProjectionMatrix();
+      this.updateMirrorRects();
     }
 
     renderMirrorViewport(domElementId, camera) {
-      const el = document.getElementById(domElementId);
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) return;
+      const rect = this.mirrorRects[domElementId];
+      if (!rect) return;
 
-      const canvasHeight = window.innerHeight;
-      const left = Math.round(rect.left);
-      const bottom = Math.round(canvasHeight - rect.bottom);
-      const width = Math.round(rect.width);
-      const height = Math.round(rect.height);
+      if (Math.abs(camera.aspect - rect.aspect) > 0.001) {
+        camera.aspect = rect.aspect;
+        camera.updateProjectionMatrix();
+      }
 
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-
-      this.renderer.setViewport(left, bottom, width, height);
-      this.renderer.setScissor(left, bottom, width, height);
+      this.renderer.setViewport(rect.left, rect.bottom, rect.width, rect.height);
+      this.renderer.setScissor(rect.left, rect.bottom, rect.width, rect.height);
       this.renderer.setScissorTest(true);
       this.renderer.clearDepth();
       this.renderer.render(this.scene, camera);
     }
 
     renderSceneAndMirrors() {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const w = this.viewportW;
+      const h = this.viewportH;
       const cabinGroup = this.player.cabinInteriorGroup;
+
+      // Update shadow map only ONCE per frame (instead of 4x across all mirrors)
+      this.renderer.shadowMap.needsUpdate = true;
 
       // 1. Render Main First-Person Cockpit View (show front hood/pillars, hide back cabin box)
       this.player.chassisGroup.visible = true;
@@ -796,6 +905,9 @@
       this.renderer.setScissorTest(false);
       this.renderer.clear();
       this.renderer.render(this.scene, this.player.driverCamera);
+
+      // Skip mirror passes while configurator/debrief modal is open
+      if (!this.isRunning) return;
 
       // 2. Render Left & Right Side Wing Mirrors (hide all car interior & cockpit meshes)
       this.player.chassisGroup.visible = false;

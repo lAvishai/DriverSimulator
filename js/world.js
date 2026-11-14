@@ -20,6 +20,16 @@
     }
 
     clearWorld() {
+      this.worldGroup.traverse((obj) => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((m) => m.dispose());
+          } else {
+            obj.material.dispose();
+          }
+        }
+      });
       while (this.worldGroup.children.length > 0) {
         const child = this.worldGroup.children[0];
         this.worldGroup.remove(child);
@@ -29,10 +39,189 @@
       this.rainSystem = null;
       this.sunLight = null;
       this.sunTarget = null;
+      this._inst = null;
+    }
+
+    initInstanceCollectors() {
+      this._inst = {
+        yellowLine: [],
+        whiteDash: [],
+        puddles: [],
+        crosswalkStripes: [],
+        buildingTowers: [],
+        buildingPlinths: [],
+        buildingStorefronts: [],
+        buildingAwnings: [],
+        buildingCornices: [],
+        buildingPenthouses: [],
+        buildingWindows: [],
+        hydrantBodies: [],
+        hydrantDomes: [],
+        hydrantNozzles: [],
+        bollards: [],
+        lightPoles: [],
+        lightArms: [],
+        lightLuminaires: [],
+        lightPools: [],
+        treePlanters: [],
+        treeTrunks: [],
+        treeCrownsMain: [],
+        treeCrownsLeft: [],
+        treeCrownsRight: [],
+        busRoofs: [],
+        busWalls: [],
+        busAds: [],
+        busBenches: []
+      };
+    }
+
+    buildInstancedMesh(list, geo, mat, castShadow = false, receiveShadow = false) {
+      if (!list || list.length === 0) return null;
+      const im = new THREE.InstancedMesh(geo, mat, list.length);
+      im.castShadow = castShadow;
+      im.receiveShadow = receiveShadow;
+      const dummy = new THREE.Object3D();
+      const color = new THREE.Color();
+      let hasColors = false;
+
+      for (let i = 0; i < list.length; i++) {
+        const item = list[i];
+        dummy.position.set(item.x, item.y, item.z);
+        dummy.rotation.set(item.rx || 0, item.ry || 0, item.rz || 0);
+        dummy.scale.set(item.sx !== undefined ? item.sx : 1, item.sy !== undefined ? item.sy : 1, item.sz !== undefined ? item.sz : 1);
+        dummy.updateMatrix();
+        im.setMatrixAt(i, dummy.matrix);
+        if (item.color !== undefined) {
+          hasColors = true;
+          color.setHex(item.color);
+          im.setColorAt(i, color);
+        }
+      }
+      im.instanceMatrix.needsUpdate = true;
+      if (hasColors && im.instanceColor) im.instanceColor.needsUpdate = true;
+      this.worldGroup.add(im);
+      return im;
+    }
+
+    flushInstances() {
+      const inst = this._inst;
+      if (!inst) return;
+      const isWet = this.weather === 'NIGHT_RAIN';
+      const isNight = this.weather === 'NIGHT_RAIN' || this.weather === 'DUSK';
+      const isStreetNight = isNight || this.weather === 'FOG';
+
+      // Road markings & puddles
+      this.buildInstancedMesh(inst.yellowLine, new THREE.PlaneGeometry(0.32, 7.8), new THREE.MeshBasicMaterial({ color: 0xfacc15 }));
+      this.buildInstancedMesh(inst.whiteDash, new THREE.PlaneGeometry(0.18, 3.6), new THREE.MeshBasicMaterial({ color: 0xe2e8f0 }));
+      this.buildInstancedMesh(
+        inst.puddles,
+        new THREE.CircleGeometry(1, 12),
+        new THREE.MeshPhongMaterial({ color: 0x0f172a, specular: 0xffffff, shininess: 180, transparent: true, opacity: 0.55 })
+      );
+      this.buildInstancedMesh(inst.crosswalkStripes, new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0xf1f5f9 }));
+
+      // Buildings
+      this.buildInstancedMesh(
+        inst.buildingTowers,
+        new THREE.BoxGeometry(1, 1, 1),
+        new THREE.MeshPhongMaterial({ color: 0xffffff, specular: 0x334155, shininess: 25 }),
+        true,
+        true
+      );
+      const plinthMat = new THREE.MeshPhongMaterial({ color: 0x1e293b, shininess: 40 });
+      this.buildInstancedMesh(inst.buildingPlinths, new THREE.BoxGeometry(1, 3.4, 1), plinthMat);
+      this.buildInstancedMesh(inst.buildingCornices, new THREE.BoxGeometry(1, 0.5, 1), plinthMat);
+      this.buildInstancedMesh(
+        inst.buildingStorefronts,
+        new THREE.PlaneGeometry(1, 2.2),
+        new THREE.MeshPhongMaterial({
+          color: isNight ? 0xfde68a : 0x7dd3fc,
+          emissive: isNight ? 0x78350f : 0x0c4a6e,
+          shininess: 140
+        })
+      );
+      this.buildInstancedMesh(
+        inst.buildingAwnings,
+        new THREE.BoxGeometry(1.1, 0.35, 1),
+        new THREE.MeshLambertMaterial({ color: 0xffffff }),
+        true,
+        false
+      );
+      this.buildInstancedMesh(
+        inst.buildingPenthouses,
+        new THREE.BoxGeometry(1, 2.6, 1),
+        new THREE.MeshLambertMaterial({ color: 0x475569 }),
+        true,
+        false
+      );
+      this.buildInstancedMesh(
+        inst.buildingWindows,
+        new THREE.PlaneGeometry(1, 1.25),
+        new THREE.MeshPhongMaterial({
+          color: isNight ? 0xfef08a : 0x93c5fd,
+          emissive: isNight ? 0xca8a04 : 0x1e3a8a,
+          emissiveIntensity: isNight ? 0.55 : 0.2,
+          specular: 0xffffff,
+          shininess: 140
+        })
+      );
+
+      // Fire Hydrants & Bollards
+      const redMat = new THREE.MeshPhongMaterial({ color: 0xdc2626, shininess: 90 });
+      this.buildInstancedMesh(inst.hydrantBodies, new THREE.CylinderGeometry(0.18, 0.2, 0.75, 10), redMat, true, false);
+      this.buildInstancedMesh(inst.hydrantDomes, new THREE.SphereGeometry(0.18, 10, 8), redMat);
+      this.buildInstancedMesh(
+        inst.hydrantNozzles,
+        new THREE.CylinderGeometry(0.08, 0.08, 0.42, 8),
+        new THREE.MeshPhongMaterial({ color: 0xe2e8f0, shininess: 130 })
+      );
+      this.buildInstancedMesh(
+        inst.bollards,
+        new THREE.CylinderGeometry(0.1, 0.11, 0.9, 8),
+        new THREE.MeshPhongMaterial({ color: 0xfacc15, shininess: 80 }),
+        true,
+        false
+      );
+
+      // Streetlights
+      const metalMat = new THREE.MeshPhongMaterial({ color: 0x334155, shininess: 80 });
+      this.buildInstancedMesh(inst.lightPoles, new THREE.CylinderGeometry(0.1, 0.14, 7.2, 8), metalMat, true, false);
+      this.buildInstancedMesh(inst.lightArms, new THREE.CylinderGeometry(0.06, 0.08, 2.8, 6), metalMat);
+      this.buildInstancedMesh(
+        inst.lightLuminaires,
+        new THREE.BoxGeometry(0.65, 0.14, 0.32),
+        new THREE.MeshBasicMaterial({ color: isStreetNight ? 0xfef08a : 0xe2e8f0 })
+      );
+      this.buildInstancedMesh(
+        inst.lightPools,
+        new THREE.CircleGeometry(4.2, 12),
+        new THREE.MeshBasicMaterial({ color: 0xfef08a, transparent: true, opacity: 0.13 })
+      );
+
+      // Trees
+      this.buildInstancedMesh(inst.treePlanters, new THREE.BoxGeometry(1.4, 0.42, 1.4), new THREE.MeshLambertMaterial({ color: 0x475569 }));
+      this.buildInstancedMesh(inst.treeTrunks, new THREE.CylinderGeometry(0.14, 0.2, 2.4, 8), new THREE.MeshLambertMaterial({ color: 0x5c4033 }), true, false);
+      const leafMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+      this.buildInstancedMesh(inst.treeCrownsMain, new THREE.SphereGeometry(1.35, 10, 8), leafMat, true, false);
+      this.buildInstancedMesh(inst.treeCrownsLeft, new THREE.SphereGeometry(0.95, 8, 8), leafMat, true, false);
+      this.buildInstancedMesh(inst.treeCrownsRight, new THREE.SphereGeometry(0.9, 8, 8), leafMat, true, false);
+
+      // Bus Stops
+      this.buildInstancedMesh(inst.busRoofs, new THREE.BoxGeometry(1.8, 0.14, 4.2), new THREE.MeshPhongMaterial({ color: 0x1e293b, shininess: 90 }), true, false);
+      this.buildInstancedMesh(
+        inst.busWalls,
+        new THREE.BoxGeometry(0.08, 2.4, 3.9),
+        new THREE.MeshPhongMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.45, shininess: 140 })
+      );
+      this.buildInstancedMesh(inst.busAds, new THREE.BoxGeometry(1.5, 2.2, 0.12), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+      this.buildInstancedMesh(inst.busBenches, new THREE.BoxGeometry(0.55, 0.12, 2.2), new THREE.MeshLambertMaterial({ color: 0x94a3b8 }));
+
+      this._inst = null;
     }
 
     buildScenarioWorld(config) {
       this.clearWorld();
+      this.initInstanceCollectors();
       this.weather = config.weather || 'DAY';
       const difficulty = parseInt(config.difficulty || 2, 10);
       const numCrossings = parseInt(config.crossingsGoal || 3, 10);
@@ -58,7 +247,10 @@
       // 4. Build Multi-Tier City Blocks, Streetlights, Trees & Bus Stops
       this.buildCityBlocksAndStreetscape(totalLength, difficulty);
 
-      // 5. Optional Rain Particle System
+      // 5. Flush all collected static geometry into InstancedMeshes
+      this.flushInstances();
+
+      // 6. Optional Rain Particle System
       if (this.weather === 'NIGHT_RAIN') {
         this.buildRainParticles();
       }
@@ -113,8 +305,8 @@
       dirLight.position.set(45, 78, 40);
       dirLight.target = this.sunTarget;
       dirLight.castShadow = true;
-      dirLight.shadow.mapSize.width = 2048;
-      dirLight.shadow.mapSize.height = 2048;
+      dirLight.shadow.mapSize.width = 1024;
+      dirLight.shadow.mapSize.height = 1024;
       dirLight.shadow.camera.near = 10;
       dirLight.shadow.camera.far = 220;
       const d = 75;
@@ -174,41 +366,18 @@
         this.worldGroup.add(sw);
       });
 
-      // Double yellow center line, white lane dashes & reflective wet puddles
-      const yellowMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
-      const whiteMat = new THREE.MeshBasicMaterial({ color: 0xe2e8f0 });
-      const puddleMat = new THREE.MeshPhongMaterial({
-        color: 0x0f172a,
-        specular: 0xffffff,
-        shininess: 180,
-        transparent: true,
-        opacity: 0.55
-      });
-
       for (let z = 60; z > -totalLength; z -= 8) {
         if (this.isInsideAnyCrossroad(z, 15)) continue;
 
-        const yGeo = new THREE.PlaneGeometry(0.32, 7.8);
-        const yMesh = new THREE.Mesh(yGeo, yellowMat);
-        yMesh.rotation.x = -Math.PI / 2;
-        yMesh.position.set(0, 0.025, z);
-        this.worldGroup.add(yMesh);
+        this._inst.yellowLine.push({ x: 0, y: 0.025, z, rx: -Math.PI / 2 });
 
-        [-5, 5].forEach((lx) => {
-          const dashGeo = new THREE.PlaneGeometry(0.18, 3.6);
-          const dash = new THREE.Mesh(dashGeo, whiteMat);
-          dash.rotation.x = -Math.PI / 2;
-          dash.position.set(lx, 0.025, z);
-          this.worldGroup.add(dash);
-        });
+        this._inst.whiteDash.push({ x: -5, y: 0.025, z, rx: -Math.PI / 2 });
+        this._inst.whiteDash.push({ x: 5, y: 0.025, z, rx: -Math.PI / 2 });
 
         // Add glossy reflective puddles in Night Rain mode
         if (isWet && Math.abs(z) % 24 === 0) {
-          const pGeo = new THREE.CircleGeometry(1.8 + (Math.abs(z) % 3) * 0.5, 14);
-          const puddle = new THREE.Mesh(pGeo, puddleMat);
-          puddle.rotation.x = -Math.PI / 2;
-          puddle.position.set(((z % 5) - 2) * 3.2, 0.026, z);
-          this.worldGroup.add(puddle);
+          const r = 1.8 + (Math.abs(z) % 3) * 0.5;
+          this._inst.puddles.push({ x: ((z % 5) - 2) * 3.2, y: 0.026, z, rx: -Math.PI / 2, sx: r, sy: r, sz: 1 });
         }
       }
     }
@@ -249,34 +418,20 @@
       this.worldGroup.add(boxMesh);
 
       // Zebra Crosswalks
-      const stripeMat = new THREE.MeshBasicMaterial({ color: 0xf1f5f9 });
-
       [cz + 12.2, cz - 12.2].forEach((cwZ) => {
         for (let x = -8.8; x <= 8.8; x += 1.4) {
-          const sGeo = new THREE.PlaneGeometry(0.75, 3.0);
-          const sMesh = new THREE.Mesh(sGeo, stripeMat);
-          sMesh.rotation.x = -Math.PI / 2;
-          sMesh.position.set(x, 0.03, cwZ);
-          this.worldGroup.add(sMesh);
+          this._inst.crosswalkStripes.push({ x, y: 0.03, z: cwZ, rx: -Math.PI / 2, sx: 0.75, sy: 3.0, sz: 1 });
         }
       });
 
       [-12.2, 12.2].forEach((cwX) => {
         for (let z = cz - 8.8; z <= cz + 8.8; z += 1.4) {
-          const sGeo = new THREE.PlaneGeometry(3.0, 0.75);
-          const sMesh = new THREE.Mesh(sGeo, stripeMat);
-          sMesh.rotation.x = -Math.PI / 2;
-          sMesh.position.set(cwX, 0.03, z);
-          this.worldGroup.add(sMesh);
+          this._inst.crosswalkStripes.push({ x: cwX, y: 0.03, z, rx: -Math.PI / 2, sx: 3.0, sy: 0.75, sz: 1 });
         }
       });
 
       // Stop bar
-      const stopGeo = new THREE.PlaneGeometry(9.6, 0.65);
-      const stopMesh = new THREE.Mesh(stopGeo, stripeMat);
-      stopMesh.rotation.x = -Math.PI / 2;
-      stopMesh.position.set(5.0, 0.032, cz + 14.5);
-      this.worldGroup.add(stopMesh);
+      this._inst.crosswalkStripes.push({ x: 5.0, y: 0.032, z: cz + 14.5, rx: -Math.PI / 2, sx: 9.6, sy: 0.65, sz: 1 });
 
       // Overhead Traffic Signal Gantry
       const signalObj = this.buildTrafficGantry(cz, idx, difficulty);
@@ -311,89 +466,52 @@
      * colored awning, architectural roof cornice, rooftop penthouse, and reflective windows.
      */
     buildDetailedBuilding(bx, bz, bw, bd, bh, baseColorHex, seed) {
-      const bGroup = new THREE.Group();
-      bGroup.position.set(bx, 0, bz);
-
-      const wallMat = new THREE.MeshPhongMaterial({
-        color: baseColorHex,
-        specular: 0x334155,
-        shininess: 25
-      });
-
-      // Main building tower
-      const tower = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), wallMat);
-      tower.position.set(0, bh / 2, 0);
-      tower.castShadow = true;
-      tower.receiveShadow = true;
-      bGroup.add(tower);
-
-      // Ground-floor dark stone base plinth
-      const plinthMat = new THREE.MeshPhongMaterial({ color: 0x1e293b, shininess: 40 });
-      const plinth = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.3, 3.4, bd + 0.3), plinthMat);
-      plinth.position.set(0, 1.7, 0);
-      bGroup.add(plinth);
-
-      // Storefront glass & colorful awning facing the main avenue (toward X = 0)
       const facingSign = bx > 0 ? -1 : 1;
-      const storefrontGlassMat = new THREE.MeshPhongMaterial({
-        color: this.weather === 'NIGHT_RAIN' || this.weather === 'DUSK' ? 0xfde68a : 0x7dd3fc,
-        emissive: this.weather === 'NIGHT_RAIN' || this.weather === 'DUSK' ? 0x78350f : 0x0c4a6e,
-        shininess: 140
+
+      this._inst.buildingTowers.push({ x: bx, y: bh / 2, z: bz, sx: bw, sy: bh, sz: bd, color: baseColorHex });
+      this._inst.buildingPlinths.push({ x: bx, y: 1.7, z: bz, sx: bw + 0.3, sy: 1, sz: bd + 0.3 });
+      this._inst.buildingStorefronts.push({
+        x: bx + facingSign * (bw / 2 + 0.18),
+        y: 1.5,
+        z: bz,
+        ry: facingSign * (Math.PI / 2),
+        sx: bw * 0.72,
+        sy: 1,
+        sz: 1
       });
-      const sfGlass = new THREE.Mesh(new THREE.PlaneGeometry(bw * 0.72, 2.2), storefrontGlassMat);
-      sfGlass.rotation.y = facingSign * (Math.PI / 2);
-      sfGlass.position.set(facingSign * (bw / 2 + 0.18), 1.5, 0);
-      bGroup.add(sfGlass);
 
       const awningColors = [0xdc2626, 0x2563eb, 0x059669, 0xd97706];
-      const awningMat = new THREE.MeshLambertMaterial({
-        color: awningColors[Math.abs(seed) % awningColors.length]
+      const awningColor = awningColors[Math.abs(seed) % awningColors.length];
+      this._inst.buildingAwnings.push({
+        x: bx + facingSign * (bw / 2 + 0.55),
+        y: 2.95,
+        z: bz,
+        rz: facingSign * -0.25,
+        sx: 1,
+        sy: 1,
+        sz: bd * 0.76,
+        color: awningColor
       });
-      const awning = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.35, bd * 0.76), awningMat);
-      awning.position.set(facingSign * (bw / 2 + 0.55), 2.95, 0);
-      awning.rotation.z = facingSign * -0.25;
-      awning.castShadow = true;
-      bGroup.add(awning);
 
-      // Roof cornice ledge & rooftop mechanical penthouse
-      const cornice = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.6, 0.5, bd + 0.6), plinthMat);
-      cornice.position.set(0, bh + 0.25, 0);
-      bGroup.add(cornice);
+      this._inst.buildingCornices.push({ x: bx, y: bh + 0.25, z: bz, sx: bw + 0.6, sy: 1, sz: bd + 0.6 });
+      this._inst.buildingPenthouses.push({ x: bx, y: bh + 1.5, z: bz, sx: bw * 0.45, sy: 1, sz: bd * 0.45 });
 
-      const penthouse = new THREE.Mesh(
-        new THREE.BoxGeometry(bw * 0.45, 2.6, bd * 0.45),
-        new THREE.MeshLambertMaterial({ color: 0x475569 })
-      );
-      penthouse.position.set(0, bh + 1.5, 0);
-      penthouse.castShadow = true;
-      bGroup.add(penthouse);
-
-      this.worldGroup.add(bGroup);
       this.addBuildingWindows(bx, bh, bz, bw, bd);
     }
 
     addBuildingWindows(bx, bh, bz, bw, bd) {
-      const isNight = this.weather === 'NIGHT_RAIN' || this.weather === 'DUSK';
-      const winMat = new THREE.MeshPhongMaterial({
-        color: isNight ? 0xfef08a : 0x93c5fd,
-        emissive: isNight ? 0xca8a04 : 0x1e3a8a,
-        emissiveIntensity: isNight ? 0.55 : 0.2,
-        specular: 0xffffff,
-        shininess: 140
-      });
-
       const facingSign = bx > 0 ? -1 : 1;
       for (let y = 5.0; y < bh - 2; y += 3.4) {
-        // Front facade (Z+)
-        const wFront = new THREE.Mesh(new THREE.PlaneGeometry(bw * 0.72, 1.25), winMat);
-        wFront.position.set(bx, y, bz + bd / 2 + 0.06);
-        this.worldGroup.add(wFront);
-
-        // Avenue-facing facade (X inward)
-        const wSide = new THREE.Mesh(new THREE.PlaneGeometry(bd * 0.72, 1.25), winMat);
-        wSide.rotation.y = facingSign * (Math.PI / 2);
-        wSide.position.set(bx + facingSign * (bw / 2 + 0.06), y, bz);
-        this.worldGroup.add(wSide);
+        this._inst.buildingWindows.push({ x: bx, y, z: bz + bd / 2 + 0.06, sx: bw * 0.72, sy: 1, sz: 1 });
+        this._inst.buildingWindows.push({
+          x: bx + facingSign * (bw / 2 + 0.06),
+          y,
+          z: bz,
+          ry: facingSign * (Math.PI / 2),
+          sx: bd * 0.72,
+          sy: 1,
+          sz: 1
+        });
       }
     }
 
@@ -472,38 +590,19 @@
      * Builds a classic red cast-iron Fire Hydrant on the sidewalk corner.
      */
     buildFireHydrant(x, z) {
-      const hGroup = new THREE.Group();
-      const redMat = new THREE.MeshPhongMaterial({ color: 0xdc2626, shininess: 90 });
-      const silverMat = new THREE.MeshPhongMaterial({ color: 0xe2e8f0, shininess: 130 });
-
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.2, 0.75, 12), redMat);
-      body.position.set(0, 0.45, 0);
-      body.castShadow = true;
-
-      const dome = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 10), redMat);
-      dome.position.set(0, 0.82, 0);
-
-      const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.42, 10), silverMat);
-      nozzle.rotation.z = Math.PI / 2;
-      nozzle.position.set(0, 0.58, 0);
-
-      hGroup.add(body, dome, nozzle);
-      hGroup.position.set(x, 0, z);
-      this.worldGroup.add(hGroup);
+      this._inst.hydrantBodies.push({ x, y: 0.45, z });
+      this._inst.hydrantDomes.push({ x, y: 0.82, z });
+      this._inst.hydrantNozzles.push({ x, y: 0.58, z, rz: Math.PI / 2 });
     }
 
     buildCornerBollards(cz) {
-      const bollardMat = new THREE.MeshPhongMaterial({ color: 0xfacc15, shininess: 80 });
       [
         [-10.8, cz + 14.5],
         [10.8, cz + 14.5],
         [-10.8, cz - 14.5],
         [10.8, cz - 14.5]
       ].forEach(([bx, bz]) => {
-        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.11, 0.9, 10), bollardMat);
-        post.position.set(bx, 0.52, bz);
-        post.castShadow = true;
-        this.worldGroup.add(post);
+        this._inst.bollards.push({ x: bx, y: 0.52, z: bz });
       });
     }
 
@@ -511,125 +610,39 @@
      * Builds an overhang urban streetlight with glowing LED luminaire and ground light pool.
      */
     buildStreetlight(x, z) {
-      const sGroup = new THREE.Group();
-      const sign = x > 0 ? -1 : 1; // Overhangs inward over the road
-      const metalMat = new THREE.MeshPhongMaterial({ color: 0x334155, shininess: 80 });
-
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 7.2, 10), metalMat);
-      pole.position.set(0, 3.6, 0);
-      pole.castShadow = true;
-
-      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.8, 8), metalMat);
-      arm.rotation.z = sign * (Math.PI / 2 - 0.22);
-      arm.position.set(sign * 1.25, 7.05, 0);
+      const sign = x > 0 ? -1 : 1;
+      this._inst.lightPoles.push({ x, y: 3.6, z });
+      this._inst.lightArms.push({ x: x + sign * 1.25, y: 7.05, z, rz: sign * (Math.PI / 2 - 0.22) });
+      this._inst.lightLuminaires.push({ x: x + sign * 2.45, y: 7.25, z });
 
       const isNight = this.weather === 'NIGHT_RAIN' || this.weather === 'DUSK' || this.weather === 'FOG';
-      const bulbMat = new THREE.MeshBasicMaterial({
-        color: isNight ? 0xfef08a : 0xe2e8f0
-      });
-      const luminaire = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.14, 0.32), bulbMat);
-      luminaire.position.set(sign * 2.45, 7.25, 0);
-
-      sGroup.add(pole, arm, luminaire);
-
-      // Soft warm ground light pool on the asphalt during Dusk / Night Rain / Fog
       if (isNight) {
-        const poolGeo = new THREE.CircleGeometry(4.2, 16);
-        const poolMat = new THREE.MeshBasicMaterial({
-          color: 0xfef08a,
-          transparent: true,
-          opacity: 0.13
-        });
-        const pool = new THREE.Mesh(poolGeo, poolMat);
-        pool.rotation.x = -Math.PI / 2;
-        pool.position.set(sign * 3.0, 0.028, 0);
-        sGroup.add(pool);
+        this._inst.lightPools.push({ x: x + sign * 3.0, y: 0.028, z, rx: -Math.PI / 2 });
       }
-
-      sGroup.position.set(x, 0, z);
-      this.worldGroup.add(sGroup);
     }
 
     /**
      * Builds a lush multi-sphere urban sidewalk tree inside a concrete planter box.
      */
     buildStreetTree(x, z, seed) {
-      const tGroup = new THREE.Group();
-
-      const planter = new THREE.Mesh(
-        new THREE.BoxGeometry(1.4, 0.42, 1.4),
-        new THREE.MeshLambertMaterial({ color: 0x475569 })
-      );
-      planter.position.set(0, 0.28, 0);
-
-      const trunk = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.14, 0.2, 2.4, 10),
-        new THREE.MeshLambertMaterial({ color: 0x5c4033 })
-      );
-      trunk.position.set(0, 1.4, 0);
-      trunk.castShadow = true;
-
       const foliageColors = [0x15803d, 0x166534, 0x14532d, 0x4d7c0f];
-      const leafMat = new THREE.MeshLambertMaterial({
-        color: foliageColors[Math.abs(seed) % foliageColors.length]
-      });
+      const leafColor = foliageColors[Math.abs(seed) % foliageColors.length];
 
-      const crownMain = new THREE.Mesh(new THREE.SphereGeometry(1.35, 12, 10), leafMat);
-      crownMain.position.set(0, 3.2, 0);
-      crownMain.castShadow = true;
-
-      const crownLeft = new THREE.Mesh(new THREE.SphereGeometry(0.95, 10, 10), leafMat);
-      crownLeft.position.set(-0.55, 2.85, 0.35);
-      crownLeft.castShadow = true;
-
-      const crownRight = new THREE.Mesh(new THREE.SphereGeometry(0.9, 10, 10), leafMat);
-      crownRight.position.set(0.55, 2.95, -0.35);
-      crownRight.castShadow = true;
-
-      tGroup.add(planter, trunk, crownMain, crownLeft, crownRight);
-      tGroup.position.set(x, 0, z);
-      this.worldGroup.add(tGroup);
+      this._inst.treePlanters.push({ x, y: 0.28, z });
+      this._inst.treeTrunks.push({ x, y: 1.4, z });
+      this._inst.treeCrownsMain.push({ x, y: 3.2, z, color: leafColor });
+      this._inst.treeCrownsLeft.push({ x: x - 0.55, y: 2.85, z: z + 0.35, color: leafColor });
+      this._inst.treeCrownsRight.push({ x: x + 0.55, y: 2.95, z: z - 0.35, color: leafColor });
     }
 
     /**
      * Builds a modern glass Bus Stop Shelter with illuminated ad panel and bench.
      */
     buildBusStop(x, z) {
-      const bGroup = new THREE.Group();
-      const frameMat = new THREE.MeshPhongMaterial({ color: 0x1e293b, shininess: 90 });
-      const glassMat = new THREE.MeshPhongMaterial({
-        color: 0x93c5fd,
-        transparent: true,
-        opacity: 0.45,
-        shininess: 140
-      });
-
-      // Roof canopy
-      const roof = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.14, 4.2), frameMat);
-      roof.position.set(0, 2.65, 0);
-      roof.castShadow = true;
-
-      // Back glass wall
-      const backWall = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.4, 3.9), glassMat);
-      backWall.position.set(x > 0 ? 0.8 : -0.8, 1.4, 0);
-
-      // Illuminated transit poster panel
-      const adPanel = new THREE.Mesh(
-        new THREE.BoxGeometry(1.5, 2.2, 0.12),
-        new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
-      );
-      adPanel.position.set(0, 1.4, 2.0);
-
-      // Passenger bench
-      const bench = new THREE.Mesh(
-        new THREE.BoxGeometry(0.55, 0.12, 2.2),
-        new THREE.MeshLambertMaterial({ color: 0x94a3b8 })
-      );
-      bench.position.set(x > 0 ? 0.45 : -0.45, 0.62, -0.2);
-
-      bGroup.add(roof, backWall, adPanel, bench);
-      bGroup.position.set(x, 0, z);
-      this.worldGroup.add(bGroup);
+      this._inst.busRoofs.push({ x, y: 2.65, z });
+      this._inst.busWalls.push({ x: x + (x > 0 ? 0.8 : -0.8), y: 1.4, z });
+      this._inst.busAds.push({ x, y: 1.4, z: z + 2.0 });
+      this._inst.busBenches.push({ x: x + (x > 0 ? 0.45 : -0.45), y: 0.62, z: z - 0.2 });
     }
 
     buildCityBlocksAndStreetscape(totalLength, difficulty) {
