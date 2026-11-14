@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0a0e17" />
+  <link rel="manifest" href="manifest.json" />
   <title>Emergency Crossroad Simulator — 3D Cockpit Edition</title>
   <link rel="stylesheet" href="css/style.css" />
   <!-- Three.js r128 -->
@@ -191,6 +196,44 @@
           </button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Mobile Multi-Touch Controls Overlay (shown on touch/small screens) -->
+  <div id="mobile-controls">
+    <!-- Left Thumb: Proportional Touch Steering Pad -->
+    <div class="mobile-steer-zone">
+      <div id="touch-steer-pad" class="touch-steer-pad" aria-label="Steering Pad">
+        <span class="steer-arrow left">◄</span>
+        <div class="steer-track"></div>
+        <div id="touch-steer-knob" class="steer-knob">STEER</div>
+        <span class="steer-arrow right">►</span>
+      </div>
+    </div>
+
+    <!-- Right Thumb: Air Horn, Brake & Gas Pedals -->
+    <div class="mobile-pedals-zone">
+      <button id="touch-horn-btn" class="touch-horn-btn" type="button">📢 HORN</button>
+      <div class="pedals-row">
+        <button id="touch-brake-btn" class="touch-pedal brake-pedal" type="button">
+          <span class="pedal-icon">🛑</span>
+          <span class="pedal-label">BRAKE</span>
+        </button>
+        <button id="touch-gas-btn" class="touch-pedal gas-pedal" type="button">
+          <span class="pedal-icon">🟢</span>
+          <span class="pedal-label">GAS</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Portrait Orientation Warning Overlay for Mobile -->
+  <div id="rotate-device-overlay" class="hidden">
+    <div class="rotate-card">
+      <div class="rotate-icon">📱↻</div>
+      <h2>Rotate to Landscape</h2>
+      <p>Emergency Crossroad Simulator is designed for wide landscape driving with live side mirrors and two-thumb controls.</p>
+      <button id="dismiss-rotate-btn" class="secondary-btn" type="button">Continue in Portrait</button>
     </div>
   </div>
 

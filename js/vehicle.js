@@ -354,7 +354,8 @@
         else if (this.speedMs < 0) this.speedMs = Math.min(0, this.speedMs + 4.0 * dt);
       }
 
-      const steerInput = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+      const keyboardSteer = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+      const steerInput = Math.abs(input.steerAxis || 0) > 0.02 ? input.steerAxis : keyboardSteer;
       if (steerInput !== 0) {
         this.steerAngle = THREE.MathUtils.lerp(this.steerAngle, steerInput * 0.65, dt * 7);
       } else {

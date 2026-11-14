@@ -1,0 +1,18 @@
+{
+  "name": "Emergency Crossroad Simulator",
+  "short_name": "EMS Driver",
+  "description": "3D Cockpit Emergency Vehicle Crossroad Simulator with live mirrors, sirens, and obstacle AI.",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0a0e17",
+  "theme_color": "#0a0e17",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='36' fill='%230a0e17'/%3E%3Crect x='24' y='52' width='144' height='88' rx='18' fill='%23ef4444'/%3E%3Crect x='76' y='34' width='40' height='22' rx='6' fill='%233b82f6'/%3E%3Ctext x='96' y='112' font-size='56' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'%3E911%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -48,6 +48,7 @@
         brake: false,
         left: false,
         right: false,
+        steerAxis: 0,
         lookLeft: false,
         lookRight: false
       };
@@ -60,6 +61,7 @@
 
       this.bindUIEvents();
       this.bindKeyboardEvents();
+      this.bindMobileControls();
       window.addEventListener('resize', () => this.onResize());
 
       // Build an initial preview background scene behind the configurator modal
@@ -163,6 +165,214 @@
         leftPill.classList.remove('active');
         rightPill.classList.remove('active');
       });
+    }
+
+    bindMobileControls() {
+      const isTouchCapable = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      if (isTouchCapable) {
+        document.body.classList.add('is-touch-device');
+      }
+
+      // 1. Proportional Multi-Touch Steering Pad (Left Thumb)
+      const steerPad = document.getElementById('touch-steer-pad');
+      const steerKnob = document.getElementById('touch-steer-knob');
+      let steerPointerId = null;
+
+      const updateSteerFromClientX = (clientX) => {
+        if (!steerPad || !steerKnob) return;
+        const rect = steerPad.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const maxOffset = Math.max(24, rect.width / 2 - 28);
+        const dx = THREE.MathUtils.clamp(clientX - centerX, -maxOffset, maxOffset);
+        const norm = dx / maxOffset; // -1 (left) .. +1 (right)
+        // Vehicle heading uses +1 for left, -1 for right
+        this.input.steerAxis = -norm;
+        steerKnob.style.transform = `translate(calc(-50% + ${dx}px), -50%)`;
+      };
+
+      const resetSteerPad = () => {
+        steerPointerId = null;
+        this.input.steerAxis = 0;
+        if (steerKnob) {
+          steerKnob.style.transform = 'translate(-50%, -50%)';
+        }
+        if (steerPad) steerPad.classList.remove('active');
+      };
+
+      if (steerPad) {
+        steerPad.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          steerPointerId = e.pointerId;
+          steerPad.setPointerCapture(e.pointerId);
+          steerPad.classList.add('active');
+          updateSteerFromClientX(e.clientX);
+        });
+
+        steerPad.addEventListener('pointermove', (e) => {
+          if (e.pointerId !== steerPointerId) return;
+          e.preventDefault();
+          updateSteerFromClientX(e.clientX);
+        });
+
+        steerPad.addEventListener('pointerup', (e) => {
+          if (e.pointerId === steerPointerId) resetSteerPad();
+        });
+        steerPad.addEventListener('pointercancel', (e) => {
+          if (e.pointerId === steerPointerId) resetSteerPad();
+        });
+      }
+
+      // 2. Multi-Touch Pedals & Quick Horn (Right Thumb)
+      const bindHoldButton = (btnId, onDown, onUp) => {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        let activePointerId = null;
+
+        btn.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          activePointerId = e.pointerId;
+          btn.setPointerCapture(e.pointerId);
+          btn.classList.add('pressing');
+          onDown();
+        });
+
+        const release = (e) => {
+          if (e.pointerId !== activePointerId) return;
+          activePointerId = null;
+          btn.classList.remove('pressing');
+          onUp();
+        };
+
+        btn.addEventListener('pointerup', release);
+        btn.addEventListener('pointercancel', release);
+      };
+
+      bindHoldButton(
+        'touch-gas-btn',
+        () => { this.input.forward = true; },
+        () => { this.input.forward = false; }
+      );
+      bindHoldButton(
+        'touch-brake-btn',
+        () => { this.input.brake = true; },
+        () => { this.input.brake = false; }
+      );
+      bindHoldButton(
+        'touch-horn-btn',
+        () => { this.setHorn(true); },
+        () => { this.setHorn(false); }
+      );
+
+      // 3. Touch Support for Look Left / Look Right Pills
+      const leftPill = document.getElementById('look-left-pill');
+      const rightPill = document.getElementById('look-right-pill');
+      if (leftPill) {
+        leftPill.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          this.input.lookLeft = true;
+          leftPill.classList.add('active');
+        }, { passive: false });
+        leftPill.addEventListener('touchend', () => {
+          this.input.lookLeft = false;
+          leftPill.classList.remove('active');
+        });
+        leftPill.addEventListener('touchcancel', () => {
+          this.input.lookLeft = false;
+          leftPill.classList.remove('active');
+        });
+      }
+      if (rightPill) {
+        rightPill.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          this.input.lookRight = true;
+          rightPill.classList.add('active');
+        }, { passive: false });
+        rightPill.addEventListener('touchend', () => {
+          this.input.lookRight = false;
+          rightPill.classList.remove('active');
+        });
+        rightPill.addEventListener('touchcancel', () => {
+          this.input.lookRight = false;
+          rightPill.classList.remove('active');
+        });
+      }
+
+      // 4. Tap Center Mirror to Toggle Rear Traffic vs. Back Cabin View
+      const centerMirrorRect = document.getElementById('mirror-center-rect');
+      if (centerMirrorRect) {
+        centerMirrorRect.addEventListener('click', () => {
+          if (this.isRunning) this.toggleCenterMirrorMode();
+        });
+      }
+
+      // 5. Swipe Left / Right on Windshield Canvas for 90° Head-Checks
+      const canvas = this.canvas;
+      let swipePointerId = null;
+      let swipeStartX = 0;
+
+      const clearSwipeLook = () => {
+        swipePointerId = null;
+        this.input.lookLeft = false;
+        this.input.lookRight = false;
+        if (leftPill) leftPill.classList.remove('active');
+        if (rightPill) rightPill.classList.remove('active');
+      };
+
+      canvas.addEventListener('pointerdown', (e) => {
+        if (!this.isRunning || e.pointerType === 'mouse') return;
+        swipePointerId = e.pointerId;
+        swipeStartX = e.clientX;
+      });
+
+      canvas.addEventListener('pointermove', (e) => {
+        if (!this.isRunning || e.pointerId !== swipePointerId) return;
+        const dx = e.clientX - swipeStartX;
+        if (dx < -28) {
+          this.input.lookLeft = true;
+          this.input.lookRight = false;
+          if (leftPill) leftPill.classList.add('active');
+          if (rightPill) rightPill.classList.remove('active');
+        } else if (dx > 28) {
+          this.input.lookRight = true;
+          this.input.lookLeft = false;
+          if (rightPill) rightPill.classList.add('active');
+          if (leftPill) leftPill.classList.remove('active');
+        } else {
+          this.input.lookLeft = false;
+          this.input.lookRight = false;
+          if (leftPill) leftPill.classList.remove('active');
+          if (rightPill) rightPill.classList.remove('active');
+        }
+      });
+
+      canvas.addEventListener('pointerup', (e) => {
+        if (e.pointerId === swipePointerId) clearSwipeLook();
+      });
+      canvas.addEventListener('pointercancel', (e) => {
+        if (e.pointerId === swipePointerId) clearSwipeLook();
+      });
+
+      // 6. Portrait Orientation Warning Prompt
+      const rotateOverlay = document.getElementById('rotate-device-overlay');
+      const dismissRotateBtn = document.getElementById('dismiss-rotate-btn');
+      let rotateDismissed = false;
+
+      const checkOrientation = () => {
+        if (!rotateOverlay) return;
+        const isPortraitMobile = window.innerWidth <= 768 && window.innerHeight > window.innerWidth;
+        rotateOverlay.classList.toggle('hidden', !isPortraitMobile || rotateDismissed);
+      };
+
+      if (dismissRotateBtn) {
+        dismissRotateBtn.addEventListener('click', () => {
+          rotateDismissed = true;
+          rotateOverlay.classList.add('hidden');
+        });
+      }
+
+      window.addEventListener('resize', checkOrientation);
+      window.addEventListener('orientationchange', checkOrientation);
+      checkOrientation();
     }
 
     bindKeyboardEvents() {

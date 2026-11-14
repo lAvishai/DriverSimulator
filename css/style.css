@@ -992,3 +992,397 @@ kbd {
   justify-content: center;
   gap: 12px;
 }
+
+
+/* ============================================================
+   MOBILE TOUCH CONTROLS & RESPONSIVE LANDSCAPE HUD
+   ============================================================ */
+html, body, #viewport-container, #game-canvas {
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+#mobile-controls {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+}
+
+body.is-touch-device #mobile-controls {
+  display: block;
+}
+
+.mobile-steer-zone {
+  position: absolute;
+  left: max(14px, env(safe-area-inset-left));
+  bottom: 132px;
+  pointer-events: auto;
+}
+
+.touch-steer-pad {
+  position: relative;
+  width: 176px;
+  height: 68px;
+  background: rgba(15, 23, 42, 0.78);
+  border: 2px solid rgba(56, 189, 248, 0.45);
+  border-radius: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  touch-action: none;
+}
+
+.touch-steer-pad.active {
+  border-color: #38bdf8;
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.55);
+}
+
+.steer-track {
+  position: absolute;
+  left: 26px;
+  right: 26px;
+  height: 4px;
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 2px;
+}
+
+.steer-arrow {
+  font-size: 16px;
+  font-weight: 900;
+  color: rgba(226, 232, 240, 0.6);
+  z-index: 1;
+}
+
+.steer-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #1e293b, #0f172a);
+  border: 2.5px solid #38bdf8;
+  color: #f8fafc;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.mobile-pedals-zone {
+  position: absolute;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: 132px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.touch-horn-btn {
+  background: linear-gradient(180deg, #b91c1c, #7f1d1d);
+  border: 1.5px solid #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 7px 14px;
+  border-radius: 999px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+  touch-action: none;
+}
+
+.touch-horn-btn.pressing {
+  background: #ef4444;
+  transform: scale(0.95);
+}
+
+.pedals-row {
+  display: flex;
+  gap: 10px;
+}
+
+.touch-pedal {
+  width: 68px;
+  height: 76px;
+  border-radius: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.65);
+  touch-action: none;
+}
+
+.brake-pedal {
+  background: linear-gradient(180deg, rgba(185, 28, 28, 0.88), rgba(127, 29, 29, 0.94));
+  border-color: #f87171;
+}
+
+.gas-pedal {
+  background: linear-gradient(180deg, rgba(21, 128, 61, 0.88), rgba(20, 83, 45, 0.94));
+  border-color: #4ade80;
+}
+
+.touch-pedal.pressing {
+  transform: scale(0.94);
+  filter: brightness(1.25);
+}
+
+.pedal-icon {
+  font-size: 20px;
+}
+
+.pedal-label {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+}
+
+/* Portrait Orientation Prompt */
+#rotate-device-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(6, 10, 18, 0.94);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.rotate-card {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 26px 22px;
+  max-width: 340px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.rotate-icon {
+  font-size: 42px;
+}
+
+.rotate-card h2 {
+  font-size: 19px;
+  font-weight: 900;
+}
+
+.rotate-card p {
+  font-size: 13px;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+/* Compact Mobile / Small-Height Landscape HUD */
+@media (max-width: 960px), (max-height: 540px) {
+  #mobile-controls {
+    display: block;
+  }
+
+  #top-cockpit-bar {
+    top: 4px;
+    gap: 8px;
+  }
+
+  .center-mirror {
+    width: 220px;
+    height: 76px;
+    border-width: 3px;
+  }
+
+  .side-mirror {
+    top: 86px;
+    width: 132px;
+    height: 86px;
+    border-width: 3px;
+  }
+
+  .left-mirror {
+    left: 8px;
+  }
+
+  .right-mirror {
+    right: 8px;
+  }
+
+  .mirror-header {
+    padding: 2px 6px;
+    font-size: 8.5px;
+  }
+
+  .mirror-warning-text {
+    display: none;
+  }
+
+  .look-indicator {
+    margin-top: 6px;
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+
+  .key-badge,
+  .key-hint,
+  .controls-hint-row {
+    display: none;
+  }
+
+  #intersection-hud {
+    top: 6px;
+    right: 8px;
+    padding: 4px 8px;
+    gap: 8px;
+  }
+
+  .metric-label {
+    font-size: 7.5px;
+  }
+
+  .metric-value {
+    font-size: 11px;
+  }
+
+  .hud-action-btn {
+    padding: 4px 7px;
+    font-size: 9.5px;
+  }
+
+  #cabin-comms-banner {
+    top: 88px;
+    min-width: 240px;
+    max-width: 360px;
+    padding: 5px 10px;
+  }
+
+  .comms-text {
+    font-size: 11.5px;
+  }
+
+  #cockpit-dashboard {
+    height: 114px;
+    padding: 6px 10px;
+    gap: 8px;
+    grid-template-columns: 1fr 0.65fr 1.35fr;
+  }
+
+  .dash-module {
+    padding: 5px 8px;
+  }
+
+  .module-title {
+    font-size: 8.5px;
+  }
+
+  #ecg-canvas {
+    height: 26px;
+  }
+
+  .meter-row {
+    font-size: 9px;
+    gap: 5px;
+  }
+
+  .meter-label {
+    width: 78px;
+    font-size: 8.5px;
+  }
+
+  .speed-digits {
+    font-size: 24px;
+  }
+
+  #steering-wheel-visual {
+    width: 108px;
+    height: 52px;
+  }
+
+  .wheel-rim {
+    width: 102px;
+    height: 102px;
+    border-width: 9px;
+    top: 46px;
+  }
+
+  .siren-buttons-grid {
+    gap: 4px;
+  }
+
+  .siren-btn {
+    padding: 4px 3px;
+  }
+
+  .siren-btn .btn-main {
+    font-size: 10px;
+    margin-top: 2px;
+  }
+
+  .siren-btn .btn-sub {
+    display: none;
+  }
+
+  .siren-aux-row {
+    gap: 4px;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .aux-btn {
+    padding: 4px 5px;
+    font-size: 9.5px;
+  }
+
+  #airhorn-btn {
+    display: none;
+  }
+
+  /* Responsive Scenario Configurator Modal */
+  .modal-backdrop {
+    padding: 10px;
+  }
+
+  .modal-card {
+    padding: 14px 16px;
+    max-height: 94vh;
+  }
+
+  .modal-card h1 {
+    font-size: 18px;
+  }
+
+  .config-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .sliders-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .primary-launch-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
